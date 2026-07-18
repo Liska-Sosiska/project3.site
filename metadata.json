@@ -1,0 +1,6 @@
+{
+  "name": "Project 3 Site",
+  "description": "An elegant brutalist under construction landing page with running ticker lines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
