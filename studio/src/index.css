@@ -1,0 +1,185 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=VT323&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-pixel: "Silkscreen", "VT323", "Press Start 2P", monospace;
+  --font-pixel-vt: "VT323", monospace;
+  --font-pixel-press: "Press Start 2P", monospace;
+  --font-sans: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Custom Scrollbar styling for a retro pixel/brutalist look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #bcbcbc;
+  border: 2px solid #f1f1f1;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #444444;
+  border: 2px solid #121212;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #888888;
+}
+
+/* Infinite Marquee Animations */
+@keyframes marquee-left {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes marquee-right {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-marquee-left {
+  display: flex;
+  width: max-content;
+  animation: marquee-left linear infinite;
+}
+
+.animate-marquee-right {
+  display: flex;
+  width: max-content;
+  animation: marquee-right linear infinite;
+}
+
+/* Custom shadow effects for brutalist UI */
+.neo-shadow {
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+
+.neo-shadow-sm {
+  box-shadow: 2px 2px 0px 0px #000000;
+}
+
+.neo-shadow-white {
+  box-shadow: 4px 4px 0px 0px #ffffff;
+}
+
+.neo-shadow-accent {
+  box-shadow: 4px 4px 0px 0px var(--color-cyan-400);
+}
+
+/* Active scanline visual effect for retro vibe */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Beautiful horizontal scanlines mimicking old CRT monitors */
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.35) 50%
+  );
+  background-size: 100% 5px; /* 5px height for scanlines spacing */
+  z-index: 25;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+/* Vignette and vintage light curve shadow for genuine CRT aesthetic */
+.scanlines::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: radial-gradient(
+    circle,
+    transparent 55%,
+    rgba(0, 0, 0, 0.45) 120%
+  );
+  z-index: 26;
+  pointer-events: none;
+}
+
+/* Glow styling for Phosphor Green ticker rows */
+.crt-green-text {
+  color: #00ff66;
+  text-shadow: 0 0 3px rgba(0, 255, 102, 0.75), 0 0 10px rgba(0, 255, 102, 0.4);
+}
+
+/* Subtle CRT screen brightness flicker */
+@keyframes crt-flicker {
+  0% { opacity: 0.975; }
+  50% { opacity: 1; }
+  100% { opacity: 0.985; }
+}
+
+.crt-flicker {
+  animation: crt-flicker 0.12s infinite;
+}
+
+/* Rolling scan bar (camera capture scan beam effect) */
+@keyframes crt-roll {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.crt-roll-beam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 240px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 0, 0, 0.45) 30%,
+    rgba(0, 0, 0, 0.7) 50%,
+    rgba(0, 0, 0, 0.45) 70%,
+    transparent
+  );
+  animation: crt-roll 16s linear infinite;
+  pointer-events: none;
+  z-index: 22;
+  opacity: 0.85;
+}
+
+/* Recolor PNG icons dynamically to match CRT green phosphor text with same glow effects */
+.crt-recolored-icon {
+  image-rendering: pixelated;
+  filter: url(#recolor-green) drop-shadow(0 0 3px rgba(0, 255, 102, 0.75)) drop-shadow(0 0 10px rgba(0, 255, 102, 0.4));
+  opacity: 0.8;
+  transition: opacity 0.2s ease-in-out, filter 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.crt-recolored-icon:hover {
+  filter: url(#recolor-green) drop-shadow(0 0 5px rgba(0, 255, 102, 0.95)) drop-shadow(0 0 15px rgba(0, 255, 102, 0.75));
+  opacity: 1;
+}
+
+

@@ -45,35 +45,19 @@ const HalftoneDots: React.FC = () => {
     let width = 0;
     let height = 0;
 
-    const resizeCanvas = () => {
-      const w = canvas.clientWidth || window.innerWidth || 1;
-      const h = canvas.clientHeight || window.innerHeight || 1;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      width = w;
-      height = h;
-    };
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.scale(dpr, dpr);
+        width = w;
+        height = h;
+      }
+    });
 
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const { width: w, height: h } = entry.contentRect;
-          const dpr = window.devicePixelRatio || 1;
-          canvas.width = w * dpr;
-          canvas.height = h * dpr;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          width = w;
-          height = h;
-        }
-      });
-      resizeObserver.observe(canvas);
-    } else {
-      resizeCanvas();
-      window.addEventListener('resize', resizeCanvas);
-    }
+    resizeObserver.observe(canvas);
 
     let startTime = performance.now();
 
@@ -134,10 +118,7 @@ const HalftoneDots: React.FC = () => {
 
     return () => {
       cancelAnimationFrame(animationId);
-      resizeObserver?.disconnect();
-      if (typeof ResizeObserver === 'undefined') {
-        window.removeEventListener('resize', resizeCanvas);
-      }
+      resizeObserver.disconnect();
     };
   }, []);
 
@@ -317,17 +298,6 @@ const BackgroundWithParticles: React.FC = () => {
     let width = 0;
     let height = 0;
 
-    const resizeCanvas = () => {
-      const w = canvas.clientWidth || window.innerWidth || 1;
-      const h = canvas.clientHeight || window.innerHeight || 1;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      width = w;
-      height = h;
-    };
-
     const bgImg = new Image();
     bgImg.src = background1;
     let bgLoaded = false;
@@ -349,24 +319,19 @@ const BackgroundWithParticles: React.FC = () => {
       if (star5Img.naturalWidth > 0) star5Loaded = true;
     };
 
-    let resizeObserver: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const { width: w, height: h } = entry.contentRect;
-          const dpr = window.devicePixelRatio || 1;
-          canvas.width = w * dpr;
-          canvas.height = h * dpr;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          width = w;
-          height = h;
-        }
-      });
-      resizeObserver.observe(canvas);
-    } else {
-      resizeCanvas();
-      window.addEventListener('resize', resizeCanvas);
-    }
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width: w, height: h } = entry.contentRect;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = w * dpr;
+        canvas.height = h * dpr;
+        ctx.scale(dpr, dpr);
+        width = w;
+        height = h;
+      }
+    });
+
+    resizeObserver.observe(canvas);
 
     interface Particle {
       x: number;
@@ -534,10 +499,7 @@ const BackgroundWithParticles: React.FC = () => {
 
     return () => {
       cancelAnimationFrame(animationId);
-      resizeObserver?.disconnect();
-      if (typeof ResizeObserver === 'undefined') {
-        window.removeEventListener('resize', resizeCanvas);
-      }
+      resizeObserver.disconnect();
     };
   }, []);
 
@@ -550,110 +512,322 @@ const BackgroundWithParticles: React.FC = () => {
   );
 };
 
-const PixelIcon: React.FC<PixelIconProps & { src: string; alt: string; href: string }> = ({ src, alt, href, className = '' }) => (
-  <a
-    href={href}
-    target="_blank"
-    rel="noreferrer"
-    className={`group inline-flex h-12 w-12 items-center justify-center border border-black bg-white transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_#000] ${className}`}
-  >
-    <img src={src} alt={alt} className="h-6 w-6 object-contain" draggable={false} />
-  </a>
-);
+export default function App() {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [smoothMouse, setSmoothMouse] = useState({ x: 0.5, y: 0.5 });
+  const mouseTarget = useRef({ x: 0.5, y: 0.5 });
 
-const TickerBand: React.FC<{ lines: string[]; direction: 'left' | 'right' }> = ({ lines, direction }) => {
-  const repeated = [...lines, ...lines, ...lines];
-  const animationClass = direction === 'left' ? 'animate-marquee-left' : 'animate-marquee-right';
+  // Track global mouse coordinates anywhere on the window
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      const isMobile = window.innerWidth < 768; // matching Tailwind's md: breakpoint
+      if (isMobile) {
+        // On mobile, the right pane is full-width (stacked at the bottom), so x maps 0 to 1
+        mouseTarget.current.x = Math.max(0, Math.min(1, e.clientX / window.innerWidth));
+      } else {
+        // On desktop, the right pane is the right 50%
+        // So clientX from window.innerWidth/2 to window.innerWidth is mapped to 0 to 1
+        const halfWidth = window.innerWidth / 2;
+        const relativeX = (e.clientX - halfWidth) / halfWidth;
+        mouseTarget.current.x = Math.max(0, Math.min(1, relativeX));
+      }
+      mouseTarget.current.y = e.clientY / window.innerHeight;
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+
+    let animationFrameId: number;
+    let currentX = 0.5;
+    let currentY = 0.5;
+
+    // Smooth physics-based interpolation (lerping)
+    const updateSmoothMouse = () => {
+      currentX += (mouseTarget.current.x - currentX) * 0.08;
+      currentY += (mouseTarget.current.y - currentY) * 0.08;
+      setSmoothMouse({ x: currentX, y: currentY });
+      animationFrameId = requestAnimationFrame(updateSmoothMouse);
+    };
+
+    animationFrameId = requestAnimationFrame(updateSmoothMouse);
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  const handleRightPaneMouseLeave = () => {
+    setHoveredIdx(null);
+  };
+
+  const isAnyRowHovered = hoveredIdx !== null;
 
   return (
-    <div className={`overflow-hidden border-t border-black bg-[#111111] py-3 text-[0.7rem] uppercase tracking-[0.35em] text-[#00ff66] ${animationClass}`}>
-      <div className="flex w-max items-center gap-8 whitespace-nowrap">
-        {repeated.map((line, idx) => (
-          <span key={`${line}-${idx}`} className="px-2">
-            {line}
+    <div className="flex flex-col md:flex-row min-h-screen w-full bg-black text-white overflow-hidden select-none font-mono">
+      
+      {/* ЛЕВАЯ ПОЛОВИНА СТРАНИЦЫ: БЕЛЫЙ ФОН */}
+      <div className="w-full md:w-1/2 min-h-[40vh] md:min-h-screen bg-white flex flex-col justify-center items-center p-8 sm:p-12 md:p-16 lg:p-24 border-b-4 md:border-b-0 md:border-r-4 border-black relative z-20">
+        {/* Background box with slow oscillation and swirling star particles */}
+        <BackgroundWithParticles />
+
+        <div className="w-full max-w-xs sm:max-w-md md:max-w-lg flex flex-col items-stretch gap-1 select-none uppercase text-black font-pixel font-bold relative z-10">
+          <div className="w-full flex justify-between text-[21vw] md:text-[10vw] leading-[0.85] tracking-normal text-black">
+            {"SITE".split("").map((char, i) => (
+              <span key={i}>{char}</span>
+            ))}
+          </div>
+          <div className="w-full flex justify-between text-[12.5vw] md:text-[6vw] leading-[0.85] tracking-normal text-black">
+            {"UNDER".split("").map((char, i) => (
+              <span key={i}>{char}</span>
+            ))}
+          </div>
+          <div className="w-full flex justify-between text-[5.4vw] md:text-[2.6vw] leading-[0.85] tracking-normal text-black mt-1">
+            {"CONSTRUCTION".split("").map((char, i) => (
+              <span key={i}>{char}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Comic/Manga Halftone Dots Gradient */}
+        <HalftoneDots />
+      </div>
+
+      {/* ПРАВАЯ ПОЛОВИНА СТРАНИЦЫ: ЧЕРНЫЙ ФОН С БЕГУЩИМИ СТРОКАМИ */}
+      <div 
+        onMouseLeave={handleRightPaneMouseLeave}
+        className="w-full md:w-1/2 min-h-[60vh] md:min-h-screen bg-black relative flex items-center justify-center overflow-hidden z-10 scanlines crt-flicker"
+      >
+        
+        {/* Сетка на заднем плане для ретро атмосферы */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#111_1px,transparent_1px),linear-gradient(to_bottom,#111_1px,transparent_1px)] bg-[size:30px_30px] opacity-40 pointer-events-none" />
+        
+        {/* Темная бегущая полоса (эффект затвора/съемки CRT камеры) */}
+        <div className="crt-roll-beam" />
+
+        {/* Наклонный контейнер, плавно выпрямляющийся, когда наведена мышь на любую строку */}
+        <div 
+          className="absolute w-full h-[150%] flex flex-col justify-center gap-2 sm:gap-3 md:gap-4 transition-transform duration-500 ease-out"
+          style={{ 
+            transformOrigin: 'center center',
+            transform: isAnyRowHovered 
+              ? `rotate(0deg) translateY(${(smoothMouse.y - 0.5) * 80}px) scale(1.0)`
+              : `rotate(-12deg) translateY(${(smoothMouse.y - 0.5) * 80}px) scale(1.3)`
+          }}
+        >
+          {TICKER_LINES.map((text, idx) => (
+            <TickerRow
+              key={idx}
+              text={text}
+              idx={idx}
+              hoveredIdx={hoveredIdx}
+              setHoveredIdx={setHoveredIdx}
+              globalMouseX={smoothMouse.x}
+              isSocials={idx === 8}
+            />
+          ))}
+        </div>
+      </div>
+      {/* Recolor SVG filter to dynamically turn black/colored PNG pixels into Phosphor Green (#00ff66) */}
+      <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
+        <defs>
+          <filter id="recolor-green">
+            <feFlood floodColor="#00ff66" result="flood" />
+            <feComposite in="flood" in2="SourceAlpha" operator="in" />
+          </filter>
+        </defs>
+      </svg>
+    </div>
+  );
+}
+
+interface TickerRowProps {
+  text: string;
+  idx: number;
+  hoveredIdx: number | null;
+  setHoveredIdx: (idx: number | null) => void;
+  globalMouseX: number;
+  isSocials?: boolean;
+}
+
+const TickerRow: React.FC<TickerRowProps> = ({ text, idx, hoveredIdx, setHoveredIdx, globalMouseX, isSocials }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const singleTextRef = useRef<HTMLSpanElement>(null);
+  
+  const offsetRef = useRef<number>(0);
+  const textWidthRef = useRef<number>(0);
+  const initialOffsetSet = useRef<boolean>(false);
+  
+  const isHovered = hoveredIdx === idx;
+
+  // Measure container and text bounds
+  useEffect(() => {
+    const measure = () => {
+      if (singleTextRef.current) {
+        const singleTextW = singleTextRef.current.offsetWidth;
+        textWidthRef.current = singleTextW;
+        
+        // Randomize initial position offset slightly on first load so lines look varied
+        if (!initialOffsetSet.current && singleTextW > 0) {
+          offsetRef.current = -Math.random() * singleTextW;
+          initialOffsetSet.current = true;
+        }
+      }
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    
+    const t1 = setTimeout(measure, 100);
+    const t2 = setTimeout(measure, 500);
+    const t3 = setTimeout(measure, 1500);
+
+    return () => {
+      window.removeEventListener('resize', measure);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [text]);
+
+  // Butter-smooth physics and movement animation loop
+  useEffect(() => {
+    let animationFrameId: number;
+    const speed = 0.5 + (idx % 3) * 0.3; // constant leftward speed
+
+    const tick = () => {
+      if (!textRef.current || textWidthRef.current === 0) {
+        animationFrameId = requestAnimationFrame(tick);
+        return;
+      }
+
+      const singleTextW = textWidthRef.current;
+      const padding = 60; // Comfortable visual padding from screen edges
+
+      if (isHovered) {
+        // Drag mode: Map the mouse X (0 to 1) dynamically across exactly one full repetition.
+        // Since the text wraps seamlessly, pulling left (0.0) or right (1.0) rotates the text perfectly.
+        // Inverting the direction as requested (swapping left/right mapping).
+        const targetOffset = padding - globalMouseX * singleTextW;
+        
+        // High-performance smooth physics tracking (lerping)
+        offsetRef.current += (targetOffset - offsetRef.current) * 0.12;
+      } else {
+        // Automatic mode: Continue leftward motion smoothly from last position
+        offsetRef.current -= speed;
+        
+        // Seamless infinite wrapping!
+        if (offsetRef.current <= -singleTextW) {
+          offsetRef.current += singleTextW;
+        }
+      }
+
+      // Perform ultra-fast direct DOM manipulation
+      textRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+
+      animationFrameId = requestAnimationFrame(tick);
+    };
+
+    animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isHovered, globalMouseX, idx]);
+
+  const opacities = ["opacity-100", "opacity-90", "opacity-80", "opacity-75", "opacity-65", "opacity-55"];
+  const baseOpacity = opacities[idx % opacities.length];
+
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={() => setHoveredIdx(idx)}
+      className={`w-full overflow-hidden py-1 border-y border-neutral-900/30 transition-all duration-300 ease-out cursor-default select-none ${
+        isHovered ? 'bg-neutral-950/70 scale-[1.03] z-30 shadow-[0_0_15px_rgba(0,255,102,0.15)]' : 'bg-transparent z-10'
+      }`}
+    >
+      <div
+        ref={textRef}
+        className={`crt-green-text font-pixel font-bold uppercase tracking-wider text-[20px] sm:text-[26px] md:text-[30px] lg:text-[34px] whitespace-nowrap transition-opacity duration-300 ${
+          isHovered ? 'opacity-100' : baseOpacity
+        }`}
+        style={{
+          display: 'inline-block',
+          willChange: 'transform',
+        }}
+      >
+        {/* We render 8 copies of the text dynamically to seamlessly and infinitely fill any screen width */}
+        {Array.from({ length: 8 }).map((_, i) => (
+          <span
+            key={i}
+            ref={i === 0 ? singleTextRef : undefined}
+            className="pr-12 inline-block"
+          >
+            {isSocials ? (
+              <span className="inline-flex items-center gap-4">
+                <span className="align-middle">MY SOCIALS</span>
+                <span className="inline-flex items-center gap-3 sm:gap-4 md:gap-5 px-3 py-1 bg-neutral-900/50 rounded-md border border-neutral-800 pointer-events-auto cursor-default">
+                  <a
+                    href="https://youtube.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:scale-110 active:scale-95 transition-all duration-200 pointer-events-auto cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="YouTube"
+                  >
+                    <img
+                      src={youtubeIcon}
+                      alt="YouTube"
+                      className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 inline-block align-middle crt-recolored-icon"
+                    />
+                  </a>
+                  <a
+                    href="https://t.me"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:scale-110 active:scale-95 transition-all duration-200 pointer-events-auto cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Telegram"
+                  >
+                    <img
+                      src={telegramIcon}
+                      alt="Telegram"
+                      className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 inline-block align-middle crt-recolored-icon"
+                    />
+                  </a>
+                  <a
+                    href="https://discord.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:scale-110 active:scale-95 transition-all duration-200 pointer-events-auto cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Discord"
+                  >
+                    <img
+                      src={discordIcon}
+                      alt="Discord"
+                      className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 inline-block align-middle crt-recolored-icon"
+                    />
+                  </a>
+                  <a
+                    href="https://twitter.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:scale-110 active:scale-95 transition-all duration-200 pointer-events-auto cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                    title="Twitter"
+                  >
+                    <img
+                      src={xIcon}
+                      alt="Twitter"
+                      className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 inline-block align-middle crt-recolored-icon"
+                    />
+                  </a>
+                </span>
+              </span>
+            ) : (
+              text
+            )}
           </span>
         ))}
       </div>
     </div>
   );
 };
-
-export default function App() {
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[#f3f0e8] font-mono text-black">
-      <BackgroundWithParticles />
-      <div className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.55),_transparent_45%)]" />
-
-      <div className="relative z-20 flex min-h-screen items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
-        <div className="relative w-full max-w-6xl overflow-hidden border border-black bg-white/95 shadow-[10px_10px_0_0_#000] backdrop-blur-sm">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,_rgba(0,0,0,0.04)_0%,_transparent_24%,_rgba(0,0,0,0.04)_100%)]" />
-
-          <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
-            <section className="relative p-8 sm:p-10 lg:p-14">
-              <div className="absolute left-0 top-0 h-full w-2 bg-black" />
-              <p className="mb-3 text-[0.72rem] uppercase tracking-[0.45em] text-black/60">Project 3</p>
-              <h1 className="max-w-3xl text-4xl font-black uppercase tracking-[0.22em] sm:text-5xl md:text-6xl">
-                Site Under Construction
-              </h1>
-              <div className="mt-6 h-1.5 w-24 bg-black" />
-              <p className="mt-6 max-w-2xl text-sm leading-7 text-black/80 sm:text-base">
-                The landing page is being rebuilt. The animated ticker, particle field, and tactile CRT styling are back in place for the final reveal.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <PixelIcon src={youtubeIcon} alt="YouTube" href="https://youtube.com" />
-                <PixelIcon src={telegramIcon} alt="Telegram" href="https://t.me" />
-                <PixelIcon src={discordIcon} alt="Discord" href="https://discord.com" />
-                <PixelIcon src={xIcon} alt="X" href="https://x.com" />
-              </div>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {TICKER_LINES.slice(0, 6).map((text, idx) => (
-                  <div key={idx} className="border border-black bg-black px-4 py-3 text-[0.72rem] uppercase tracking-[0.25em] text-white">
-                    {text}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <aside className="relative border-t border-black bg-[#f4f1ea] p-8 sm:p-10 lg:border-l lg:border-t-0 lg:p-12">
-              <div className="absolute right-4 top-4 rounded border border-black bg-white px-3 py-2 text-[0.68rem] uppercase tracking-[0.35em] text-black/70">
-                Live signal
-              </div>
-
-              <div className="mt-6 rounded border border-black bg-black p-4 shadow-[4px_4px_0_0_#ffffff]">
-                <div className="mb-4 flex items-center justify-between text-[0.62rem] uppercase tracking-[0.4em] text-[#00ff66]">
-                  <span>Transmission</span>
-                  <span>ON AIR</span>
-                </div>
-                <div className="space-y-2 text-[0.72rem] uppercase tracking-[0.25em] text-[#00ff66]">
-                  {TICKER_LINES.slice(0, 8).map((text, idx) => (
-                    <div key={idx} className="border border-[#00ff66]/40 bg-[#001b0e] px-3 py-2">
-                      {text}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 rounded border border-black bg-[#ffffff] p-4 shadow-[4px_4px_0_0_#000]">
-                <p className="text-[0.64rem] uppercase tracking-[0.38em] text-black/60">Status</p>
-                <p className="mt-2 text-sm leading-6 text-black/80">
-                  The package is still in transit. The final artwork and motion pass will land as soon as the layout settles.
-                </p>
-              </div>
-            </aside>
-          </div>
-
-          <div className="border-t border-black bg-[#111111]">
-            <TickerBand lines={TICKER_LINES} direction="left" />
-            <TickerBand lines={TICKER_LINES.slice(6)} direction="right" />
-          </div>
-        </div>
-      </div>
-
-      <HalftoneDots />
-      <div className="scanlines pointer-events-none absolute inset-0 z-30" />
-      <div className="crt-roll-beam pointer-events-none absolute inset-0 z-30" />
-    </div>
-  );
-}
